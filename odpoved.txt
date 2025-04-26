@@ -1,0 +1,2 @@
+# Předhodil jsem FORTHu číslo 0x21 a slovo : DOUBLE DUP + ;  jako výsledek zbylo na zásobníku 0x42 - budu to považovat za hexadecimální odpověď :)
+# I threw 0x21 at my FORTH together with the word : DOUBLE DUP + ; and it left 0x42 on the stack - I'll consider that a hexadecimal answer. :)
