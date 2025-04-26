@@ -1,7 +1,7 @@
 
-.. image:: MemxFORTH Chip and Colorful Stack.png
+.. image:: MemxFORTHChipandColorfulStack.png
 	:width: 250
-	:target: MemxFORTH Chip and Colorful Stack.png
+	:target: MemxFORTHChipandColorfulStack.png
 
 memxFORTH-init
 ==============
