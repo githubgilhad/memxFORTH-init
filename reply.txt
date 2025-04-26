@@ -1,0 +1,205 @@
+/* vim: set ft=cpp noexpandtab fileencoding=utf-8 nomodified wrap textwidth=0 foldmethod=marker foldmarker={{{,}}} foldcolumn=4 ruler showcmd lcs=tab\:|- list: tabstop=8 linebreak showbreak=»\   */
+// ,,g = gcc, exactly one space after "set"
+
+Děkuji mnohokrát za odpověď, přesně tohle jsem potřeboval. Jenom mi dlouho trvalo to pochopit a zpracovat.
+
+Tady na GitHubu https://github.com/githubgilhad/memxFORTH-init je první úspěšný pokus o použití __memx ukazatelů pro práci se seznamem slov pro něco jako FORTH.
+
+Pro práci s ukazateli používám union ptr24_u, který převádí mezi __memx ukazateli, uint32_t a 3/4 byty.
+
+WORD je paměti uložený jako odkaz na následující definici, flagy, délka jména, jméno a codeword (ukazatel na spustitelný kód), případně následovaný polem odkazů na další slova (na jejich codewordy).
+
+Slovo WORDS je vytvořeno až po startu programu v RAM, slova  TEST EXIT DEBUG TROUBLE DOUBLE + DUP jsou uloženy ve FLASH. TROUBLE je hidden pro test flagů. Pro uložení do FLASH sem použil asembler (asm.S).
+
+Problém s asemblerem je, že adresy funkcí do dat (.word) ukládá jako adresu v bytech, ale pro skoky a volání používá adresy ve slovech, takže takto vytvořené codewordy je nutno po načtení vydělit dvěma (a při ukládání do RAM naopak dvěma násobit, aby výsledky byly konzistentní).
+
+
+.. code::
+
+	7c 06                   ; .word f_docol
+	0e 94 3e 03  call 0x67c ; 0x67c <f_docol>
+
+Zde je vidět, že adresa f_docol jako data je uložena jako 0x067C, zatímco při skoku na ni se uloží jako 0x033e (a to je i hodnota pro registr Z pro nepřímé skoky/volání), ale disassembler ji v komentáři převede na bytovou adresu.
+
+Pro čtení bytu z __memx ukazatele se mi (pro atmega328P - Arduino Nano, UNO) generuje takovýto kód:
+
+
+.. code::
+
+	f3 01  movw   r30, r6  ; get 2B address
+	84 91  lpm    r24, Z   ; read byte from FLASH
+	87 fc  sbrc   r8, 7    ; test top bit of 3. byte in address, skip next instruction, if the bit is zero
+	80 81  ld     r24, Z   ; read byte from RAM
+
+takže adresy 0 .. 0x7FFFFF se čtou z FLASH a adresy 0x800000 .. 0xFFFFFF se přečtou z FLASH a potom ještě z RAM (takže ve výsledku je hodnota z RAM).
+
+Pro více bytů se použijí vestavěné funkce, kde je na začátku rozeskok podle 3.bytu a pak buď série LPM, nebo série LD.
+
+Ten repozitář je první úspěšný výsledek, takže program skoro nic nedělá a vypisuje spoustu debugovacích informací, jak se mění hodnoty proměnných a paměť. Můj hlavní projekt bude v jiném repozitáři, ale z hlediska použití __memx ukazatelů už asi nepřinese nic nového, jen situaci znepřehlední přidáváním dalších slov a závislostí. Jeho repozitář jsem přidám později (až vznikne).
+
+Pokud by byl zájem, můžu i tento testovací repozitář ještě někam rozvinout, ale nevím, co by se sem dál hodilo.
+
+
+
+--------------------------------------------------------------------------------
+
+
+
+ChatGPT said:
+
+Jasně! 😊 Tady je stejný text, připravený pro Arduino fórum (které používá klasický Markdown s mírnými úpravami — hlavně místo ``` musíš používat [code]...[/code] tagy):
+
+Děkuji mnohokrát za odpověď, přesně tohle jsem potřeboval. Jenom mi chvíli trvalo vše pochopit a zpracovat.
+
+Tady na GitHubu:
+https://github.com/githubgilhad/memxFORTH-init
+je první úspěšný pokus o použití __memx ukazatelů pro práci se seznamem slov pro něco jako FORTH.
+
+Pro práci s ukazateli používám union ptr24_u, který převádí mezi __memx ukazateli, uint32_t a 3/4bytovými strukturami.
+
+Každé slovo (WORD) je v paměti uloženo jako:
+
+    odkaz na předchozí slovo (procházení slovníkem),
+
+    flagy,
+
+    délka jména,
+
+    jméno,
+
+    codeword (ukazatel na spustitelný kód),
+
+    případně následované polem odkazů na další slova (pro interpret).
+
+Slovo WORDS je vytvořeno až za běhu v RAM.
+Slova TEST, EXIT, DEBUG, TROUBLE, DOUBLE, +, DUP jsou uložená ve FLASH.
+(TROUBLE je hidden pro testování flagů.)
+
+Pro uložení slov do FLASH jsem použil assembler (asm.S).
+Pozor — assembler ukládá adresy funkcí jako byty (.word), ale pro skoky a volání používá adresy ve slovech.
+Takže při práci je třeba adresy ručně upravovat:
+
+    při čtení z dat: dělit 2 (bajtová adresa → slovní adresa),
+
+    při ukládání do RAM: násobit 2 (slovní adresa → bajtová).
+
+Příklad:
+
+[code] 7c 06 ; .word f_docol 0e 94 3e 03 ; call 0x67c <f_docol> [/code]
+
+Zde .word uloží adresu jako 0x067C, ale instrukce call používá adresu 0x033E (adresování ve slovech).
+
+Pro čtení bytu z __memx ukazatele generuje AVR-GCC (na ATmega328P) tento kód:
+
+[code] f3 01 movw r30, r6 ; načti 2B adresu 84 91 lpm r24, Z ; čti byte z FLASH 87 fc sbrc r8, 7 ; pokud je 7. bit 3. bytu adresy 1, přeskoč 80 81 ld r24, Z ; jinak čti z RAM [/code]
+
+    Adresy 0x000000 až 0x7FFFFF se čtou z FLASH.
+
+    Adresy 0x800000 až 0xFFFFFF se čtou z RAM.
+
+Pro více bajtů se používají funkce jako memcpy_PF, kde je nejdřív rozhodnutí podle 3. bytu a pak buď série LPM, nebo LD.
+Shrnutí projektu
+
+Tento repozitář je první úspěšný výsledek, takže program zatím:
+
+    skoro nic nedělá (demo účel),
+
+    vypisuje hodně debugovacích informací o paměti,
+
+    demonstruje funkční sjednocení RAM a FLASH přes __memx.
+
+Můj hlavní projekt bude později v jiném repozitáři (bude stavět na těchto základech, ale bude obsahovat více slov a komplexnější strukturu).
+
+Pokud by byl zájem, mohu tento testovací repozitář ještě rozšířit, ale aktuálně považuji cíle za splněné.
+Poznámka
+
+    Předhodil jsem FORTHu číslo 0x21 a slovo : DOUBLE DUP + ;.
+    Na zásobníku zůstal výsledek 0x42.
+    Beru to jako hezkou hexadecimální odpověď! 😊
+
+
+
+--------------------------------------------------------------------------------
+
+
+
+
+
+--------------------------------------------------------------------------------
+
+
+
+
+Thank you very much for your reply - this is exactly what I needed.
+
+It just took me some time to fully understand and process it.
+
+Here on GitHub:
+https://github.com/githubgilhad/memxFORTH-init
+is my first successful attempt at using **__memx** pointers to manage a dictionary of words for something like a Forth interpreter.
+
+For pointer handling, I use a union **ptr24_u**, which allows conversion between **__memx** pointers, **uint32_t**, and **raw 3/4 byte** representations.
+
+Each word (WORD) in memory consists of:
+
+*    a pointer to the previous word (for dictionary traversal),
+*    flags,
+*    name length,
+*    name string,
+*    codeword (pointer to executable code),
+*    optionally followed by a list of referenced words (for compiled definitions - each is also 24bit pointer to codeword).
+
+The WORDS word is built dynamically in RAM during program startup.
+
+The words TEST, EXIT, DEBUG, TROUBLE, DOUBLE, +, and DUP are stored in FLASH. (TROUBLE is hidden to test flag handling.)
+
+I use an assembler file (asm.S) to place definitions into FLASH.
+
+Note that when storing function addresses as data (.word), the assembler saves them as **byte** addresses, while for jumps/calls it expects **word** addresses.
+Thus, you need to:
+
+*    divide by 2 when reading addresses from data sections,
+*    multiply by 2 when writing back to RAM structures to maintain consistency.
+
+**Example:**
+
+    7c 06       ; .word f_docol 
+    0e 94 3e 03 ; call 0x67c <f_docol> 
+
+You can see .word saves 0x067C, while call uses 0x033E internally (because call addresses are in words, not bytes). The value 0x033E is, what register Z (for indirect jumps) should contain, but disassembler translate comments to the byte representation too.
+
+For reading a single byte through a __memx pointer, AVR-GCC (on ATmega328P - Arduino Nano, UNO) generates code like this:
+
+    f3 01   movw r30, r6 ; move 2B address to Z 
+    84 91   lpm r24, Z   ; read byte from FLASH 
+    87 fc   sbrc r8, 7   ; test top bit of 3rd byte 
+    80 81   ld r24, Z   ; if set, load from RAM instead
+
+*    Addresses from 0x000000 to 0x7FFFFF are read from FLASH.
+*    Addresses from 0x800000 to 0xFFFFFF are read from RAM.
+
+For multi-byte reads, built-in functions (like **\_\_xload\_#**) are used, which first check the top address byte and then select between LPM and LD operations.
+
+Project Summary
+---------------
+
+This repository 
+[(memxFORTH-init)][1] is a minimal, working proof of concept:
+
+*    it doesn't do much,
+*    it prints a lot of debug output showing variable and memory state,
+*    it demonstrates how to unify RAM and FLASH word access via __memx.
+
+My main project will later be in another repository (building upon these foundations, with more words and more complex behavior).
+
+If there's interest, I could expand this demo a little further - but the main technical goal is already achieved.
+
+**Fun note**
+
+
+    I threw 0x21 onto the FORTH stack together with the definition : DOUBLE DUP + ;
+    After execution, 0x42 remained on the stack.
+    I’ll consider that a perfect hexadecimal answer!
+
+
+  [1]: https://github.com/githubgilhad/memxFORTH-init

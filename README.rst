@@ -3,6 +3,7 @@ memxFORTH-init
 
 A minimal Forth-like core for AVR (ATmega328P), designed to experiment with unified RAM and FLASH word handling
 using `__memx` pointers in C. This project serves as a proof of concept and debugging tool base.
+Based on `<https://arduino.stackexchange.com/questions/97384/how-to-manage-mixed-pointers-to-ram-and-progmem-on-arduino>`__
 
 Project Goals
 -------------
@@ -49,11 +50,13 @@ Usage
 
 - Intended to verify whether `__memx` pointers can be used for seamless access to both FLASH and RAM word dictionaries
 - RAM usage:
+
   - 3 variables
   - 10-item data stack
   - 10-item return stack
   - 100 bytes for user-defined words
   - Everything else resides in FLASH
+
 - This project is mainly a source reference for other tools
 
 Notes
@@ -61,7 +64,8 @@ Notes
 This is not meant to be a complete Forth interpreter. It is a technical foundation for later interactive tools, such as hardware pin testing, control, and diagnostics.
 
 Fun detail:
-  I threw `0x21` at my FORTH together with the word `: DOUBLE DUP + ;`,
+  I threw `0x21` at my FORTH together with the word `: DOUBLE DUP + ;`
+  
   and it left `0x42` on the stack - I’ll take that as a hexadecimal answer. :)
 
 License
