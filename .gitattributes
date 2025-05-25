@@ -8,4 +8,4 @@ colors.h linguist-language=C
 debug.c linguist-language=C
 debug.h linguist-language=C
 flags.h linguist-language=C
-test.c linguist-language=C
+forth.c linguist-language=C
